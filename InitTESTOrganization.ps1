@@ -23,6 +23,8 @@ foreach($CureentOrganizationalUnit in $OrganizationalUnitList)
     }
 }
 
+##### Test Organization #####
+
 $CheckUserNameList = Test-Path $UserNameListPath -PathType Leaf
 if($CheckUserNameList -eq $true)
 {
@@ -90,4 +92,58 @@ if($CheckUserNameList -eq $true)
 else
 {
     Write-Host "File $($UserNameListPath) not found" -ForegroundColor Red
+}
+
+##### SPN Users #####
+try
+{
+    New-ADOrganizationalUnit -Name "ServiceUsers" -Path "DC=test,DC=local"
+    Write-Host -ForegroundColor Green "Add: OU=ServiceUsers,DC=test,DC=local"
+    try
+    {
+        New-ADUser -Name "Service DB" -Path "OU=ServiceUsers,DC=test,DC=local" -AccountPassword $(ConvertTo-SecureString "Qwerty$(Get-Random -InputObject (10000..99999) -Count 1)" -AsPlainText -Force) -Company "Test Corp." -Organization "Narnia" -Department "Service Account" -Description "Service Account" -DisplayName "Service DB" -Enabled $True -PasswordNeverExpires $True -SamAccountName "ServiceDB"
+        Set-ADUser -Identity "ServiceDB" -ServicePrincipalNames @{Add='MSSQLSvc/SQLSERVER.test.local:1433'}
+        Write-Host -ForegroundColor Green "Add SPN: ServiceDB > MSSQLSvc/SQLSERVER.test.local:1433"
+    }
+    catch
+    {
+        Write-Host -ForegroundColor Red "Fail add ServiceDB user"
+    }
+    try
+    {
+        New-ADUser -Name "Service WEB" -Path "OU=ServiceUsers,DC=test,DC=local" -AccountPassword $(ConvertTo-SecureString "Qwerty$(Get-Random -InputObject (10000..99999) -Count 1)" -AsPlainText -Force) -Company "Test Corp." -Organization "Narnia" -Department "Service Account" -Description "Service Account" -DisplayName "Service WEB" -Enabled $True -PasswordNeverExpires $True -SamAccountName "ServiceWEB"
+        Set-ADUser -Identity "ServiceWEB" -ServicePrincipalNames @{Add='HTTP/WEBSERVER.test.local'}
+        Write-Host -ForegroundColor Green "Add SPN: ServiceWEB > HTTP/WEBSERVER.test.local"
+    }
+    catch
+    {
+        Write-Host -ForegroundColor Red "Fail add ServiceWEB user"
+    }
+}
+catch
+{
+    Write-Host -ForegroundColor Red "Fail: OU=ServiceUsers,DC=test,DC=local"
+}
+
+
+##### AS-REP roasting #####
+try
+{
+    New-ADUser -Name "OldUser" -Path "OU=ServiceUsers,DC=test,DC=local" -AccountPassword $(ConvertTo-SecureString "Qwerty$(Get-Random -InputObject (10000..99999) -Count 1)" -AsPlainText -Force) -Company "Test Corp." -Organization "Narnia" -Department "Service Account" -Description "Service Account" -DisplayName "OldUser" -Enabled $True -PasswordNeverExpires $True -SamAccountName "OldUser"
+    Set-ADAccountControl -Identity "OldUser"  -doesnotrequirepreauth $true
+    Write-Host -ForegroundColor Green "Add doesnotrequirepreauth user: OldUser"
+}
+catch
+{
+    Write-Host -ForegroundColor Red "Fail add OldUser user"
+}
+try
+{
+    New-ADUser -Name "VeryOldUser" -Path "OU=ServiceUsers,DC=test,DC=local" -AccountPassword $(ConvertTo-SecureString "Qwerty$(Get-Random -InputObject (10000..99999) -Count 1)" -AsPlainText -Force) -Company "Test Corp." -Organization "Narnia" -Department "Service Account" -Description "Service Account" -DisplayName "VeryOldUser" -Enabled $True -PasswordNeverExpires $True -SamAccountName "VeryOldUser"
+    Set-ADAccountControl -Identity "VeryOldUser"  -Doesnotrequirepreauth $true
+    Write-Host -ForegroundColor Green "Add doesnotrequirepreauth user: VeryOldUser"
+}
+catch
+{
+    Write-Host -ForegroundColor Red "Fail add VeryOldUser user"
 }
